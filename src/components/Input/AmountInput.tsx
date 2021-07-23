@@ -1,5 +1,5 @@
 import { Divider, Input, InputAdornment } from '@material-ui/core'
-import React, { CSSProperties, useState } from 'react'
+import React, { CSSProperties, useState, useRef } from 'react'
 import classNames from 'classnames'
 import SelectTokenModal from '@components/Modals/SelectTokenModal/SelectTokenModal'
 import { BN } from '@project-serum/anchor'
@@ -19,10 +19,6 @@ interface IProps {
   onSelectToken?: (chosen: string) => void
 }
 
-interface inputString {
-  target: { value: string }
-}
-
 export const AmountInput: React.FC<IProps> = ({
   currency,
   value,
@@ -39,16 +35,35 @@ export const AmountInput: React.FC<IProps> = ({
 
   const [open, setOpen] = useState(false)
 
-  const allowOnlyDigits = (e: inputString) => {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const allowOnlyDigitsAndTrimUnnecessaryZeroes: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const regex = /^\d*\.?\d*$/
     if (e.target.value === '' || regex.test(e.target.value)) {
-      setValue(e.target.value)
+      const startValue = e.target.value
+      let parsed = e.target.value
+      const zerosRegex = /^0+\d+\.?\d*$/
+      if (zerosRegex.test(parsed)) {
+        parsed = parsed.replace(/^0+/, '')
+      }
+
+      const caretPosition = e.target.selectionStart
+      setValue(parsed)
+      if (caretPosition !== null && parsed !== startValue) {
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.selectionStart = caretPosition - 1
+            inputRef.current.selectionEnd = caretPosition - 1
+          }
+        }, 0)
+      }
     }
   }
 
   return (
     <>
       <Input
+        inputRef={inputRef}
         error={!!error}
         className={classNames(classes.amountInput, className)}
         style={style}
@@ -72,7 +87,7 @@ export const AmountInput: React.FC<IProps> = ({
             </InputAdornment>
           )
         }
-        onChange={allowOnlyDigits}
+        onChange={allowOnlyDigitsAndTrimUnnecessaryZeroes}
       />
       {(tokens?.length && onSelectToken)
         ? (
